@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
-	//"github.com/go-rod/rod/lib/proto"
 )
 
 type Tarefa struct {
@@ -83,7 +82,7 @@ func enviarMensagem(contato, mensagem string) {
 		return
 	}
 	time.Sleep(10 * time.Second)
-	err = page.Keyboard.Press('\n')  // Isso simula a tecla Enter
+	err = page.Keyboard.Press('\n')
 	if err != nil {
 		log.Println("Erro ao pressionar Enter:", err)
 		return
@@ -148,38 +147,118 @@ func painelHTML(w http.ResponseWriter, r *http.Request) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel de Tarefas</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f3f4f6; padding: 2rem; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h2 { color: #2563eb; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
-        th { background-color: #e5e7eb; }
-        form input, form button { width: 100%; padding: 0.75rem; margin: 0.5rem 0; border-radius: 4px; border: 1px solid #ccc; }
-        form button { background-color: #2563eb; color: white; border: none; cursor: pointer; }
-        form button:hover { background-color: #1e40af; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f3f4f6; 
+            padding: 0;
+            margin: 0;
+        }
+        .header {
+            background-color: #2563eb;
+            padding: 1rem;
+            text-align: center;
+            color: white;
+        }
+        .logo-container {
+            max-width: 200px;
+            margin: 0 auto 1rem auto;
+        }
+        .logo-container img {
+            max-width: 50%;
+            height: auto;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 2rem auto; 
+            background: white; 
+            padding: 2rem; 
+            border-radius: 8px; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+        }
+        h1, h2 { color: white; margin: 0; }
+        h2 { color: #2563eb; margin: 1rem 0; }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 1rem; 
+        }
+        th, td { 
+            border: 1px solid #ccc; 
+            padding: 0.5rem; 
+            text-align: left; 
+        }
+        th { 
+            background-color: #e5e7eb; 
+        }
+        form input, form button { 
+            width: 100%; 
+            padding: 0.75rem; 
+            margin: 0.5rem 0; 
+            border-radius: 4px; 
+            border: 1px solid #ccc; 
+        }
+        form button { 
+            background-color: #2563eb; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: bold;
+        }
+        form button:hover { 
+            background-color: #1e40af; 
+        }
+        .status-pendente {
+            color: #d97706;
+            font-weight: bold;
+        }
+        .status-notificado {
+            color: #059669;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
+    <div class="header">
+        <div class="logo-container">
+            <img src="/static/logo.png" alt="Logo da Empresa">
+        </div>
+        <h1>Sistema de Agendamento</h1>
+    </div>
+    
     <div class="container">
         <h2>Nova Tarefa</h2>
         <form method="POST" action="/nova">
             <input type="text" name="nome" placeholder="Nome da tarefa" required>
             <input type="datetime-local" name="horario" required>
-            <input type="text" name="contato" placeholder="Número WhatsApp (+55...)" required>
-            <button type="submit">Cadastrar</button>
+            <input type="text" name="contato" placeholder="Número WhatsApp (+5511999999999)" required>
+            <button type="submit">Cadastrar Tarefa</button>
         </form>
+        
         <h2>Minhas Tarefas</h2>
         <table>
-            <tr><th>ID</th><th>Nome</th><th>Horário</th><th>Contato</th><th>Status</th></tr>
-            {{range .Tarefas}}
-            <tr>
-                <td>{{.ID}}</td>
-                <td>{{.Nome}}</td>
-                <td>{{.Horario.Format "02/01/2006 15:04"}}</td>
-                <td>{{.Contato}}</td>
-                <td>{{.Status}}</td>
-            </tr>
-            {{end}}
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Horário</th>
+                    <th>Contato</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Tarefas}}
+                <tr>
+                    <td>{{.ID}}</td>
+                    <td>{{.Nome}}</td>
+                    <td>{{.Horario.Format "02/01/2006 15:04"}}</td>
+                    <td>{{.Contato}}</td>
+                    <td class="status-{{.Status}}">{{.Status}}</td>
+                </tr>
+                {{end}}
+            </tbody>
         </table>
     </div>
 </body>
@@ -213,9 +292,14 @@ func novaTarefa(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Configuração para servir arquivos estáticos (imagens, CSS, JS)
+	fs := http.FileServer(http.Dir("./static"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
 	go monitorarTarefas()
 	http.HandleFunc("/", painelHTML)
 	http.HandleFunc("/nova", novaTarefa)
+	
 	fmt.Println("Servidor rodando em http://localhost:8081")
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
